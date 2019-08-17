@@ -64,7 +64,7 @@ root_password="$DIALOG_RESULT"
 #################
 #### Warning ####
 #################
-bootstrapper_dialog --title "WARNING" --msgbox "This script will NUKE /dev/vda from orbit.\nPress <Enter> to continue or <Esc> to cancel.\n" 6 60
+bootstrapper_dialog --title "WARNING" --msgbox "This script will NUKE /dev/nvme0n1 from orbit.\nPress <Enter> to continue or <Esc> to cancel.\n" 6 60
 [[ $? -ne 0 ]] && (bootstrapper_dialog --title "Cancelled" --msgbox "Script was cancelled at your request." 5 40; exit 0)
 
 ##########################
@@ -76,41 +76,41 @@ reset
 #### Nuke and set up disk partitions ####
 #########################################
 echo "Zapping disk"
-sgdisk --zap-all /dev/vda
+sgdisk --zap-all /dev/nvme0n1
 
 if [[ $UEFI -eq 1 ]]; then
 
-parted -s /dev/vda mklabel gpt
-parted -s /dev/vda mkpart ESP fat32 1MiB 513MiB
-parted -s /dev/vda set 1 boot on
-parted -s /dev/vda name 1 efi
-parted -s /dev/vda mkpart primary 513MiB 800MiB
-parted -s /dev/vda name 2 boot
-parted -s /dev/vda mkpart primary 800MiB 100%
-parted -s /dev/vda name 3 lvm-partition
-parted -s /dev/vda mkpart primary fat32 1MiB 261MiB 
-parted -s /dev/vda set 1 esp on  
-parted -s /dev/vda set 3 lvm on
+parted -s /dev/nvme0n1 mklabel gpt
+parted -s /dev/nvme0n1 mkpart ESP fat32 1MiB 513MiB
+parted -s /dev/nvme0n1 set 1 boot on
+parted -s /dev/nvme0n1 name 1 efi
+parted -s /dev/nvme0n1 mkpart primary 513MiB 800MiB
+parted -s /dev/nvme0n1 name 2 boot
+parted -s /dev/nvme0n1 mkpart primary 800MiB 100%
+parted -s /dev/nvme0n1 name 3 lvm-partition
+parted -s /dev/nvme0n1 mkpart primary fat32 1MiB 261MiB 
+parted -s /dev/nvme0n1 set 1 esp on  
+parted -s /dev/nvme0n1 set 3 lvm on
 
 else
-    printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk /dev/vda
+    printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk /dev/nvme0n1
 fi
 
 echo "Setting up encryption"
-printf "%s" "$encryption_passphrase" | cryptsetup luksFormat /dev/vda3 -
-printf "%s" "$encryption_passphrase" | cryptsetup open --type luks /dev/vda3 lvm -
+printf "%s" "$encryption_passphrase" | cryptsetup luksFormat /dev/nvme0n1p3 -
+printf "%s" "$encryption_passphrase" | cryptsetup open --type luks /dev/nvme0n1p3 lvm -
 
 echo "Setting up LVM"
 pvcreate /dev/mapper/lvm
 vgcreate vg00 /dev/mapper/lvm
-lvcreate -L 30G vg00 -n lvroot
+lvcreate -L 50G vg00 -n lvroot
 lvcreate -l +100%FREE vg00 -n lvhome
 
 echo "Creating XFS file systems on top of logical volumes"
 yes | mkfs.xfs /dev/mapper/vg00-lvroot
 yes | mkfs.xfs /dev/mapper/vg00-lvhome
-yes | mkfs.vfat -F 32 /dev/vda2
-yes | mkfs.ext4 /dev/vda2
+yes | mkfs.vfat -F 32 /dev/nvme0n1p1
+yes | mkfs.ext4 /dev/nvme0n1p2
 
 ######################
 #### Install Arch ####
@@ -120,16 +120,19 @@ if [[ $UEFI -eq 1 ]]; then
 
 mount /dev/vg00/lvroot /mnt
 mkdir /mnt/{boot,home}
-mount /dev/vda2 /mnt/boot/
+mount /dev/nvme0n1p2 /mnt/boot/
 mkdir /mnt/boot/efi
-mount /dev/vda1 /mnt/boot/efi
+mount /dev/nvme0n1p1 /mnt/boot/efi
 mount /dev/vg00/lvhome /mnt/home
+mkdir /mnt/Data
+mount /dev/sda1 /mnt/Data
+
 
 else
 
 mount /dev/vg00/lvroot /mnt
 mkdir /mnt/{boot,home}
-mount /dev/vda1 /mnt/boot
+mount /dev/nvme0n11 /mnt/boot
 mount /dev/vg00/lvhome /mnt/home
 
 fi
@@ -139,7 +142,7 @@ pacman -S --noconfirm reflector
 reflector --country India  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
-yes '' | pacstrap -i /mnt base base-devel
+yes '' | pacstrap -i /mnt base base-devel ttf-liberation
 
 genfstab -U -p /mnt >> /mnt/etc/fstab
 
@@ -159,7 +162,8 @@ echo "Setting hostname"
 echo $hostname > /etc/hostname
 sed -i "/localhost/s/$/ $hostname/" /etc/hosts
 echo "Installing wifi packages"
-pacman --noconfirm -S networkmanager net-tools
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt
+systemctl enable libvirtd
 systemctl enable NetworkManager
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block encrypt lvm2 filesystems keyboard fsck"/' /etc/mkinitcpio.conf
@@ -177,7 +181,7 @@ arch-chroot /mnt /bin/bash <<EOF
     echo "Installing Grub boot loader"
     pacman --noconfirm -S grub efibootmgr 
     grub-install 
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/vda3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n13:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
 
        grub-mkconfig -o /boot/grub/grub.cfg
 EOF
@@ -186,8 +190,8 @@ else
     arch-chroot /mnt /bin/bash <<EOF
     echo "Installing Grub boot loader"
     pacman --noconfirm -S grub
-    grub-install /dev/vda
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/vda3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
+    grub-install /dev/nvme0n1
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n13:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
     
     grub-mkconfig -o /boot/grub/grub.cfg
 EOF
