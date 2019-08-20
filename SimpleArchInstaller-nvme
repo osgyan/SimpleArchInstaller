@@ -162,9 +162,10 @@ echo "Setting hostname"
 echo $hostname > /etc/hostname
 sed -i "/localhost/s/$/ $hostname/" /etc/hosts
 echo "Installing wifi packages"
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xfce4 xfce4-goodies xorg-server xorg-drivers lightdm lightdm-gtk-greeter
 systemctl enable libvirtd
 systemctl enable NetworkManager
+systemctl enable lightdm
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block encrypt lvm2 filesystems keyboard fsck"/' /etc/mkinitcpio.conf
 mkinitcpio -p linux
@@ -181,7 +182,7 @@ arch-chroot /mnt /bin/bash <<EOF
     echo "Installing Grub boot loader"
     pacman --noconfirm -S grub efibootmgr 
     grub-install 
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n13:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
 
        grub-mkconfig -o /boot/grub/grub.cfg
 EOF
@@ -191,7 +192,7 @@ else
     echo "Installing Grub boot loader"
     pacman --noconfirm -S grub
     grub-install /dev/nvme0n1
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n13:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
     
     grub-mkconfig -o /boot/grub/grub.cfg
 EOF
