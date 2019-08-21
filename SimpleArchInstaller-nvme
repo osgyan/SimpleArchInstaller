@@ -51,6 +51,8 @@ bootstrapper_dialog --title "UEFI or BIOS" --radiolist "${UEFI_BIOS_text}\nPress
 #################
 bootstrapper_dialog --title "Hostname" --inputbox "Please enter a name for this host.\n" 8 60
 hostname="$DIALOG_RESULT"
+bootstrapper_dialog --title "Country" --inputbox "Please enter your country name.\n" 8 60
+country="$DIALOG_RESULT"
 
 bootstrapper_dialog --title "UserName" --inputbox "Please enter a name for the User.\n" 8 60
 UserName="$DIALOG_RESULT"
@@ -148,7 +150,7 @@ fi
 
 pacman -Syy
 pacman -S --noconfirm reflector
-reflector --country India  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+reflector --country $country  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
 yes '' | pacstrap -i /mnt base base-devel ttf-liberation
