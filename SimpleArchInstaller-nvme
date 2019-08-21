@@ -103,14 +103,16 @@ printf "%s" "$encryption_passphrase" | cryptsetup open --type luks /dev/nvme0n1p
 echo "Setting up LVM"
 pvcreate /dev/mapper/lvm
 vgcreate vg00 /dev/mapper/lvm
-lvcreate -L 50G vg00 -n lvroot
+lvcreate -L 30G vg00 -n lvroot
+lvcreate -L 20G vg00 -n lvswap
 lvcreate -l +100%FREE vg00 -n lvhome
 
 echo "Creating XFS file systems on top of logical volumes"
-yes | mkfs.xfs /dev/mapper/vg00-lvroot
+yes | mkfs.ext4 /dev/mapper/vg00-lvroot
 yes | mkfs.xfs /dev/mapper/vg00-lvhome
 yes | mkfs.vfat -F 32 /dev/nvme0n1p1
 yes | mkfs.ext4 /dev/nvme0n1p2
+mkswap /dev/mapper/vg00-lvswap && swapon /dev/mapper/vg00-lvswap 
 
 ######################
 #### Install Arch ####
