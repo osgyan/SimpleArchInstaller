@@ -52,6 +52,10 @@ bootstrapper_dialog --title "UEFI or BIOS" --radiolist "${UEFI_BIOS_text}\nPress
 bootstrapper_dialog --title "Hostname" --inputbox "Please enter a name for this host.\n" 8 60
 hostname="$DIALOG_RESULT"
 
+bootstrapper_dialog --title "UserName" --inputbox "Please enter a name for the User.\n" 8 60
+UserName="$DIALOG_RESULT"
+
+
 ##########################
 #### Password prompts ####
 ##########################
@@ -60,6 +64,9 @@ encryption_passphrase="$DIALOG_RESULT"
 
 bootstrapper_dialog --title "Root password" --passwordbox "Please enter a strong password for the root user.\n" 8 60
 root_password="$DIALOG_RESULT"
+
+bootstrapper_dialog --title "User password" --passwordbox "Please enter a strong password for the user.\n" 8 60
+UserPassword="$DIALOG_RESULT"
 
 #################
 #### Warning ####
@@ -164,7 +171,7 @@ echo "Setting hostname"
 echo $hostname > /etc/hostname
 sed -i "/localhost/s/$/ $hostname/" /etc/hosts
 echo "Installing wifi packages"
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut vlc plasma-desktop plasma-meta konsole dolphin kwrite sddm sddm-kcm 
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut vlc plasma-desktop plasma-meta konsole dolphin kwrite sddm sddm-kcm nvidia nvidia-settings lib32-nvidia-utils  
 systemctl enable libvirtd
 systemctl enable NetworkManager
 systemctl enable sddm
@@ -173,7 +180,10 @@ sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block encrypt lvm2 filesy
 mkinitcpio -p linux
 echo "Setting root password"
 echo "root:${root_password}" | chpasswd
-
+useradd -m -G wheel -s /bin/bash $UserName
+echo "Setting user password"
+echo "user:${UserPassword}" | chpasswd
+echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers
 EOF
 
 #############################
