@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 #  SimpleArchInstaller is free software: you can redistribute it and/or modify
@@ -52,6 +51,13 @@ bootstrapper_dialog --title "UEFI or BIOS" --radiolist "${UEFI_BIOS_text}\nPress
 #################
 bootstrapper_dialog --title "Hostname" --inputbox "Please enter a name for this host.\n" 8 60
 hostname="$DIALOG_RESULT"
+bootstrapper_dialog --title "Country" --inputbox "Please enter your country name.\n" 8 60
+country="$DIALOG_RESULT"
+bootstrapper_dialog --title "UserName" --inputbox "Please enter a name for the User.\n" 8 60
+UserName="$DIALOG_RESULT"
+bootstrapper_dialog --title "DiskName" --inputbox "Please enter device Name.\n" 8 60
+DiskName="$DIALOG_RESULT"
+
 
 ##########################
 #### Password prompts ####
@@ -62,10 +68,13 @@ encryption_passphrase="$DIALOG_RESULT"
 bootstrapper_dialog --title "Root password" --passwordbox "Please enter a strong password for the root user.\n" 8 60
 root_password="$DIALOG_RESULT"
 
+bootstrapper_dialog --title "User password" --passwordbox "Please enter a strong password for the user.\n" 8 60
+UserPassword="$DIALOG_RESULT"
+
 #################
 #### Warning ####
 #################
-bootstrapper_dialog --title "WARNING" --msgbox "This script will NUKE /dev/vda from orbit.\nPress <Enter> to continue or <Esc> to cancel.\n" 6 60
+bootstrapper_dialog --title "WARNING" --msgbox "This script will NUKE /dev/nvme0n1 from orbit.\nPress <Enter> to continue or <Esc> to cancel.\n" 6 60
 [[ $? -ne 0 ]] && (bootstrapper_dialog --title "Cancelled" --msgbox "Script was cancelled at your request." 5 40; exit 0)
 
 ##########################
@@ -77,41 +86,45 @@ reset
 #### Nuke and set up disk partitions ####
 #########################################
 echo "Zapping disk"
-sgdisk --zap-all /dev/vda
+sgdisk --zap-all /dev/nvme0n1
 
 if [[ $UEFI -eq 1 ]]; then
 
-parted -s /dev/vda mklabel gpt
-parted -s /dev/vda mkpart ESP fat32 1MiB 513MiB
-parted -s /dev/vda set 1 boot on
-parted -s /dev/vda name 1 efi
-parted -s /dev/vda mkpart primary 513MiB 800MiB
-parted -s /dev/vda name 2 boot
-parted -s /dev/vda mkpart primary 800MiB 100%
-parted -s /dev/vda name 3 lvm-partition
-parted -s /dev/vda mkpart primary fat32 1MiB 261MiB 
-parted -s /dev/vda set 1 esp on  
-parted -s /dev/vda set 3 lvm on
+parted -s /dev/$DiskName mklabel gpt
+parted -s /dev/$DiskName mkpart ESP fat32 1MiB 513MiB
+parted -s /dev/$DiskName set 1 boot on
+parted -s /dev/$DiskName name 1 efi
+parted -s /dev/$DiskName mkpart primary 513MiB 800MiB
+parted -s /dev/$DiskName name 2 boot
+parted -s /dev/$DiskName mkpart primary 800MiB 100%
+parted -s /dev/$DiskName name 3 lvm-partition
+parted -s /dev/$DiskName mkpart primary fat32 1MiB 261MiB 
+parted -s /dev/$DiskName set 1 esp on  
+parted -s /dev/$DiskName set 3 lvm on
+
+cryptvolume=$(fdisk /$DiskName -l | awk '{print $1}' | awk 'END {print}')
 
 else
-    printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk /dev/vda
+    printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk $cryptvolume
 fi
 
 echo "Setting up encryption"
-printf "%s" "$encryption_passphrase" | cryptsetup luksFormat /dev/vda3 -
-printf "%s" "$encryption_passphrase" | cryptsetup open --type luks /dev/vda3 lvm -
+printf "%s" "$encryption_passphrase" | cryptsetup luksFormat $cryptvolume -
+printf "%s" "$encryption_passphrase" | cryptsetup open --type luks $cryptvolume lvm -
 
 echo "Setting up LVM"
 pvcreate /dev/mapper/lvm
 vgcreate vg00 /dev/mapper/lvm
 lvcreate -L 30G vg00 -n lvroot
+lvcreate -L 20G vg00 -n lvswap
 lvcreate -l +100%FREE vg00 -n lvhome
 
 echo "Creating XFS file systems on top of logical volumes"
-yes | mkfs.xfs /dev/mapper/vg00-lvroot
+yes | mkfs.ext4 /dev/mapper/vg00-lvroot
 yes | mkfs.xfs /dev/mapper/vg00-lvhome
-yes | mkfs.vfat -F 32 /dev/vda2
-yes | mkfs.ext4 /dev/vda2
+yes | mkfs.vfat -F 32 /dev/nvme0n1p1
+yes | mkfs.ext4 /dev/nvme0n1p2
+mkswap /dev/mapper/vg00-lvswap && swapon /dev/mapper/vg00-lvswap 
 
 ######################
 #### Install Arch ####
@@ -121,26 +134,29 @@ if [[ $UEFI -eq 1 ]]; then
 
 mount /dev/vg00/lvroot /mnt
 mkdir /mnt/{boot,home}
-mount /dev/vda2 /mnt/boot/
+mount /dev/nvme0n1p2 /mnt/boot/
 mkdir /mnt/boot/efi
-mount /dev/vda1 /mnt/boot/efi
+mount /dev/nvme0n1p1 /mnt/boot/efi
 mount /dev/vg00/lvhome /mnt/home
+mkdir /mnt/Data
+mount /dev/sda1 /mnt/Data
+
 
 else
 
 mount /dev/vg00/lvroot /mnt
 mkdir /mnt/{boot,home}
-mount /dev/vda1 /mnt/boot
+mount /dev/nvme0n11 /mnt/boot
 mount /dev/vg00/lvhome /mnt/home
 
 fi
 
 pacman -Syy
 pacman -S --noconfirm reflector
-reflector --country India  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+reflector --country $country  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
-yes '' | pacstrap -i /mnt base base-devel
+yes '' | pacstrap -i /mnt base base-devel ttf-liberation
 
 genfstab -U -p /mnt >> /mnt/etc/fstab
 
@@ -152,22 +168,34 @@ echo "Setting and generating locale"
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 echo "en_IN.UTF-8 UTF-8" > /etc/locale.gen
 locale-gen
-export LANG=en_US.UTF-8
-echo "LANG=en_US.UTF-8" >> /etc/locale.conf
+export LANG=en_IN.UTF-8
+echo "LANG=en_IN.UTF-8" >> /etc/locale.conf
 echo "Setting time zone"
 ln -s /usr/share/zoneinfo/Asia/Kolkata /etc/localtime
 echo "Setting hostname"
 echo $hostname > /etc/hostname
 sed -i "/localhost/s/$/ $hostname/" /etc/hosts
 echo "Installing wifi packages"
-pacman --noconfirm -S networkmanager net-tools
+## Insert Code to Modify Pacman.conf for Enabling Multilib support##
+echo "[multilib]" >> /etc/pacman.conf
+echo "SigLevel = PackageRequired" >> /etc/pacman.conf
+echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+sleep 1
+pacman -Syy
+sleep1 
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut vlc plasma-desktop plasma-meta konsole dolphin kwrite sddm sddm-kcm nvidia nvidia-settings lib32-nvidia-utils  
+systemctl enable libvirtd
 systemctl enable NetworkManager
+systemctl enable sddm
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block encrypt lvm2 filesystems keyboard fsck"/' /etc/mkinitcpio.conf
 mkinitcpio -p linux
 echo "Setting root password"
 echo "root:${root_password}" | chpasswd
-
+useradd -m -G wheel -s /bin/bash $UserName
+echo "Setting user password"
+echo "user:${UserPassword}" | chpasswd
+echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers
 EOF
 
 #############################
@@ -178,8 +206,8 @@ arch-chroot /mnt /bin/bash <<EOF
     echo "Installing Grub boot loader"
     pacman --noconfirm -S grub efibootmgr 
     grub-install 
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/vda3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
-
+    
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
        grub-mkconfig -o /boot/grub/grub.cfg
 EOF
 
@@ -187,8 +215,8 @@ else
     arch-chroot /mnt /bin/bash <<EOF
     echo "Installing Grub boot loader"
     pacman --noconfirm -S grub
-    grub-install /dev/vda
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/vda3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
+    grub-install /dev/nvme0n1
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
     
     grub-mkconfig -o /boot/grub/grub.cfg
 EOF
