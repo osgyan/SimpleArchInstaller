@@ -173,8 +173,13 @@ echo "Setting hostname"
 echo $hostname > /etc/hostname
 sed -i "/localhost/s/$/ $hostname/" /etc/hosts
 echo "Installing wifi packages"
-## Insert Code to Modify Pacman.conf for Enabling Multilib support.
-
+## Insert Code to Modify Pacman.conf for Enabling Multilib support##
+echo "[multilib]" >> /etc/pacman.conf
+echo "SigLevel = PackageRequired" >> /etc/pacman.conf
+echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+sleep 1
+pacman -Syy
+sleep1 
 pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut vlc plasma-desktop plasma-meta konsole dolphin kwrite sddm sddm-kcm nvidia nvidia-settings lib32-nvidia-utils  
 systemctl enable libvirtd
 systemctl enable NetworkManager
