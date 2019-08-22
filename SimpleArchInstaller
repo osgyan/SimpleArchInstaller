@@ -207,8 +207,9 @@ arch-chroot /mnt /bin/bash <<EOF
     pacman --noconfirm -S grub efibootmgr 
     grub-install 
     
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
-       grub-mkconfig -o /boot/grub/grub.cfg
+    # sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
+      echo "GRUB_CMDLINE_LINUX="quiet cryptdevice=$cryptvolume:luks:allow-discards root=/dev/vg00/lvroot"" >> /etc/default/grub
+      grub-mkconfig -o /boot/grub/grub.cfg
 EOF
 
 else
