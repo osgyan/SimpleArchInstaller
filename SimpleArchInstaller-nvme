@@ -180,18 +180,18 @@ echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
 sleep 1
 pacman -Syy
 sleep1 
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut vlc plasma-desktop plasma-meta konsole dolphin kwrite sddm sddm-kcm nvidia nvidia-settings lib32-nvidia-utils  
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut vlc nvidia nvidia-settings lib32-nvidia-utils gnome gnome-extra 
 systemctl enable libvirtd
 systemctl enable NetworkManager
-systemctl enable sddm
+systemctl enable gdm
 echo "Generating initramfs"
-sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block encrypt lvm2 filesystems keyboard fsck"/' /etc/mkinitcpio.conf
+sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block encrypt lvm2 filesystems resume keyboard fsck"/' /etc/mkinitcpio.conf
 mkinitcpio -p linux
 echo "Setting root password"
 echo "root:${root_password}" | chpasswd
 useradd -m -G wheel -s /bin/bash $UserName
 echo "Setting user password"
-echo "user:${UserPassword}" | chpasswd
+echo "$UserName:${UserPassword}" | chpasswd
 echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers
 EOF
 
@@ -203,7 +203,7 @@ arch-chroot /mnt /bin/bash <<EOF
     echo "Installing Grub boot loader"
     pacman --noconfirm -S grub efibootmgr 
     grub-install 
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot resume=/dev/vg00/lvroot"|' /etc/default/grub
 
        grub-mkconfig -o /boot/grub/grub.cfg
 EOF
