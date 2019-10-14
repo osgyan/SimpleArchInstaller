@@ -113,7 +113,7 @@ echo "Setting up LVM"
 pvcreate /dev/mapper/lvm
 vgcreate vg00 /dev/mapper/lvm
 lvcreate -L 30G vg00 -n lvroot
-lvcreate -L 20G vg00 -n lvswap
+#lvcreate -L 20G vg00 -n lvswap
 lvcreate -l +100%FREE vg00 -n lvhome
 
 echo "Creating XFS file systems on top of logical volumes"
@@ -121,7 +121,7 @@ yes | mkfs.ext4 /dev/mapper/vg00-lvroot
 yes | mkfs.xfs /dev/mapper/vg00-lvhome
 yes | mkfs.vfat -F 32 /dev/nvme0n1p1
 yes | mkfs.ext4 /dev/nvme0n1p2
-mkswap /dev/mapper/vg00-lvswap && swapon /dev/mapper/vg00-lvswap 
+#mkswap /dev/mapper/vg00-lvswap && swapon /dev/mapper/vg00-lvswap 
 
 ######################
 #### Install Arch ####
@@ -153,7 +153,7 @@ pacman -S --noconfirm reflector
 reflector --country $country  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
-yes '' | pacstrap -i /mnt base base-devel ttf-liberation
+yes '' | pacstrap -i /mnt base ttf-liberation linux linux-firmware
 
 genfstab -U -p /mnt >> /mnt/etc/fstab
 
@@ -179,8 +179,8 @@ echo "SigLevel = PackageRequired" >> /etc/pacman.conf
 echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
 sleep 1
 pacman -Syy
-sleep1 
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut vlc nvidia nvidia-settings lib32-nvidia-utils gnome gnome-extra 
+sleep 1 
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut nvidia nvidia-settings lib32-nvidia-utils gnome gnome-extra bash completion git
 systemctl enable libvirtd
 systemctl enable NetworkManager
 systemctl enable gdm
@@ -203,7 +203,7 @@ arch-chroot /mnt /bin/bash <<EOF
     echo "Installing Grub boot loader"
     pacman --noconfirm -S grub efibootmgr 
     grub-install 
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot resume=/dev/vg00/lvroot"|' /etc/default/grub
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot mitigations=off"|' /etc/default/grub
 
        grub-mkconfig -o /boot/grub/grub.cfg
 EOF
