@@ -153,7 +153,7 @@ pacman -S --noconfirm reflector
 reflector --country $country  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
-yes '' | pacstrap -i /mnt base ttf-liberation linux linux-firmware nano lvm2 sudo base-devel
+yes '' | pacstrap -i /mnt base ttf-liberation linux-lts linux-firmware nano lvm2 sudo base-devel
 
 genfstab -U -p /mnt >> /mnt/etc/fstab
 
@@ -180,10 +180,10 @@ echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
 sleep 1
 pacman -Syy
 sleep 1 
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut nvidia nvidia-settings lib32-nvidia-utils plasma-meta plasma-desktop sddm sddm-kcm breeze-gtk kde-gtk-config dolphin konsole kate bash-completion git
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut nvidia-lts nvidia-settings lib32-nvidia-utils bash-completion git gnome gnome-extra
 systemctl enable libvirtd
 systemctl enable NetworkManager
-systemctl enable sddm
+systemctl enable gdm
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block encrypt lvm2 filesystems resume keyboard fsck"/' /etc/mkinitcpio.conf
 mkinitcpio -p linux
