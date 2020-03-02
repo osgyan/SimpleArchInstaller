@@ -92,13 +92,12 @@ parted -s /dev/nvme0n1 set 1 boot on
 parted -s /dev/nvme0n1 name 1 efi
 parted -s /dev/nvme0n1 mkpart primary 513MiB 31233MiB
 parted -s /dev/nvme0n1 name 2 Root
-parted -s /dev/nvme0n1 mkpart primary 313233MiB 47617MiB
+parted -s /dev/nvme0n1 mkpart primary 31233MiB 47617MiB
 parted -s /dev/nvme0n1 name 3 swap
 parted -s /dev/nvme0n1 mkpart primary 47617MiB 100%
 parted -s /dev/nvme0n1 name 4 Home
-parted -s /dev/nvme0n1 mkpart primary fat32 1MiB 512MiB 
 parted -s /dev/nvme0n1 set 1 esp on  
-parted -s /dev/nvme0n1 set 3 lvm on
+parted -s /dev/nvme0n1 set 3 swap on 
 
 else
     printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk /dev/nvme0n1
@@ -186,7 +185,7 @@ arch-chroot /mnt /bin/bash <<EOF
     echo "Enabling Systemd Bootloader"
    bootctl install
    touch /boot/loader/entries/arch.conf
-   echo "tltle Arch Linux" > /boot/loader/entries/arch.conf
+   echo "tltle Arch Linux" >> /boot/loader/entries/arch.conf
    echo "linux   /vmlinuz-linux" >> /boot/loader/entries/arch.conf
    echo "initrd  /intel-ucode.img" >> /boot/loader/entries/arch.conf
    echo "initrd  /initramfs-linux.img" >> /boot/loader/entries/arch.conf
