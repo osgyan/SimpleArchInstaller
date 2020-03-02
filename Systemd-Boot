@@ -61,9 +61,6 @@ UserName="$DIALOG_RESULT"
 ##########################
 #### Password prompts ####
 ##########################
-bootstrapper_dialog --title "Disk encryption" --passwordbox "Please enter a strong passphrase for the full disk encryption.\n" 8 60
-encryption_passphrase="$DIALOG_RESULT"
-
 bootstrapper_dialog --title "Root password" --passwordbox "Please enter a strong password for the root user.\n" 8 60
 root_password="$DIALOG_RESULT"
 
@@ -93,11 +90,13 @@ parted -s /dev/nvme0n1 mklabel gpt
 parted -s /dev/nvme0n1 mkpart ESP fat32 1MiB 513MiB
 parted -s /dev/nvme0n1 set 1 boot on
 parted -s /dev/nvme0n1 name 1 efi
-parted -s /dev/nvme0n1 mkpart primary 513MiB 800MiB
-parted -s /dev/nvme0n1 name 2 boot
-parted -s /dev/nvme0n1 mkpart primary 800MiB 100%
-parted -s /dev/nvme0n1 name 3 lvm-partition
-parted -s /dev/nvme0n1 mkpart primary fat32 1MiB 261MiB 
+parted -s /dev/nvme0n1 mkpart primary 513MiB 31233MiB
+parted -s /dev/nvme0n1 name 2 Root
+parted -s /dev/nvme0n1 mkpart primary 313233MiB 47617MiB
+parted -s /dev/nvme0n1 name 3 swap
+parted -s /dev/nvme0n1 mkpart primary 47617MiB 100%
+parted -s /dev/nvme0n1 name 4 Home
+parted -s /dev/nvme0n1 mkpart primary fat32 1MiB 512MiB 
 parted -s /dev/nvme0n1 set 1 esp on  
 parted -s /dev/nvme0n1 set 3 lvm on
 
@@ -105,23 +104,10 @@ else
     printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk /dev/nvme0n1
 fi
 
-echo "Setting up encryption"
-printf "%s" "$encryption_passphrase" | cryptsetup luksFormat /dev/nvme0n1p3 -
-printf "%s" "$encryption_passphrase" | cryptsetup open --type luks /dev/nvme0n1p3 lvm -
-
-echo "Setting up LVM"
-pvcreate /dev/mapper/lvm
-vgcreate vg00 /dev/mapper/lvm
-lvcreate -L 30G vg00 -n lvroot
-lvcreate -L 8G vg00 -n lvswap
-lvcreate -l +100%FREE vg00 -n lvhome
-
-echo "Creating XFS file systems on top of logical volumes"
-yes | mkfs.ext4 /dev/mapper/vg00-lvroot
-yes | mkfs.xfs /dev/mapper/vg00-lvhome
-yes | mkfs.vfat -F 32 /dev/nvme0n1p1
 yes | mkfs.ext4 /dev/nvme0n1p2
-mkswap /dev/mapper/vg00-lvswap && swapon /dev/mapper/vg00-lvswap 
+yes | mkfs.xfs /dev/nvme0n1p4
+yes | mkfs.vfat -F 32 /dev/nvme0n1p1
+mkswap /dev/nvme0n1p3 && swapon /dev/nvme0n1p3
 
 ######################
 #### Install Arch ####
@@ -129,15 +115,12 @@ mkswap /dev/mapper/vg00-lvswap && swapon /dev/mapper/vg00-lvswap
 
 if [[ $UEFI -eq 1 ]]; then
 
-mount /dev/vg00/lvroot /mnt
+mount /dev/nvme0n1p2 /mnt
 mkdir /mnt/{boot,home}
-mount /dev/nvme0n1p2 /mnt/boot/
-mkdir /mnt/boot/efi
-mount /dev/nvme0n1p1 /mnt/boot/efi
-mount /dev/vg00/lvhome /mnt/home
+mount /dev/nvme0n1p1 /mnt/boot/
+mount /dev/nvme0n1p4 /mnt/home
 mkdir /mnt/Data
 mount /dev/sda1 /mnt/Data
-
 
 else
 
@@ -185,7 +168,7 @@ systemctl enable libvirtd
 systemctl enable NetworkManager
 systemctl enable sddm
 echo "Generating initramfs"
-sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block encrypt lvm2 filesystems resume keyboard fsck"/' /etc/mkinitcpio.conf
+sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block lvm2 filesystems resume keyboard fsck"/' /etc/mkinitcpio.conf
 mkinitcpio -p linux
 echo "Setting root password"
 echo "root:${root_password}" | chpasswd
@@ -200,14 +183,18 @@ EOF
 #############################
 if [[ $UEFI -eq 1 ]]; then
 arch-chroot /mnt /bin/bash <<EOF
-    echo "Installing Grub boot loader"
-    pacman --noconfirm -S grub efibootmgr 
-    grub-install 
-    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot resume=/dev/vg00/lvroot mitigations=off"|' /etc/default/grub
+    echo "Enabling Systemd Bootloader"
+   bootctl install
+   touch /boot/loader/entries/arch.conf
+   echo "tltle Arch Linux" > /boot/loader/entries/arch.conf
+   echo "linux   /vmlinuz-linux" >> /boot/loader/entries/arch.conf
+   echo "initrd  /intel-ucode.img" >> /boot/loader/entries/arch.conf
+   echo "initrd  /initramfs-linux.img" >> /boot/loader/entries/arch.conf
+   echo "options root=/dev/nvme0n1p2 rw mitigations=off quiet loglevel=3 rd.systemd.show_status=auto rd.udev.log_priority=3 resume=/dev/nvme0n1p3"  >> /boot/loader/entries/arch.conf
+   bootctl update
 
-       grub-mkconfig -o /boot/grub/grub.cfg
 EOF
-
+reboot
 else
     arch-chroot /mnt /bin/bash <<EOF
     echo "Installing Grub boot loader"
