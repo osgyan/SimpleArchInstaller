@@ -97,7 +97,7 @@ parted -s /dev/nvme0n1 name 3 swap
 parted -s /dev/nvme0n1 mkpart primary 47617MiB 100%
 parted -s /dev/nvme0n1 name 4 Home
 parted -s /dev/nvme0n1 set 1 esp on  
-parted -s /dev/nvme0n1 set 3 swap on 
+
 
 else
     printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk /dev/nvme0n1
@@ -135,7 +135,7 @@ pacman -S --noconfirm reflector
 reflector --country $country  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
-yes '' | pacstrap -i /mnt base ttf-liberation linux linux-firmware nano lvm2 sudo base-devel
+yes '' | pacstrap -i /mnt base ttf-liberation linux linux-firmware nano lvm2 sudo base-devel intel-ucode
 
 genfstab -U -p /mnt >> /mnt/etc/fstab
 
