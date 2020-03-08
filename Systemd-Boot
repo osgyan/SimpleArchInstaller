@@ -92,9 +92,9 @@ parted -s /dev/nvme0n1 set 1 boot on
 parted -s /dev/nvme0n1 name 1 efi
 parted -s /dev/nvme0n1 mkpart primary 513MiB 31233MiB
 parted -s /dev/nvme0n1 name 2 Root
-parted -s /dev/nvme0n1 mkpart primary 31233MiB 47617MiB
+parted -s /dev/nvme0n1 mkpart primary 31233MiB 39425MiB
 parted -s /dev/nvme0n1 name 3 swap
-parted -s /dev/nvme0n1 mkpart primary 47617MiB 100%
+parted -s /dev/nvme0n1 mkpart primary 39425MiB 100%
 parted -s /dev/nvme0n1 name 4 Home
 parted -s /dev/nvme0n1 set 1 esp on  
 
@@ -189,7 +189,7 @@ arch-chroot /mnt /bin/bash <<EOF
    echo "linux   /vmlinuz-linux" >> /boot/loader/entries/arch.conf
    echo "initrd  /intel-ucode.img" >> /boot/loader/entries/arch.conf
    echo "initrd  /initramfs-linux.img" >> /boot/loader/entries/arch.conf
-   echo "options root=/dev/nvme0n1p2 rw mitigations=off quiet loglevel=3 rd.systemd.show_status=auto rd.udev.log_priority=3 resume=/dev/nvme0n1p3"  >> /boot/loader/entries/arch.conf
+   echo "options root=/dev/nvme0n1p2 rw mitigations=off quiet splash ipv6.disable=1 loglevel=3 rd.systemd.show_status=auto rd.udev.log_priority=3 resume=/dev/nvme0n1p3"  >> /boot/loader/entries/arch.conf
    bootctl update
 
 EOF
