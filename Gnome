@@ -193,7 +193,7 @@ arch-chroot /mnt /bin/bash <<EOF
    touch /boot/loader/entries/arch.conf
    echo "tltle Arch Linux" >> /boot/loader/entries/arch.conf
    echo "linux   /vmlinuz-linux-lts" >> /boot/loader/entries/arch.conf
-   echo "initrd  /intel-ucode-lts.img" >> /boot/loader/entries/arch.conf
+   echo "initrd  /intel-ucode.img" >> /boot/loader/entries/arch.conf
    echo "initrd  /initramfs-linux-lts.img" >> /boot/loader/entries/arch.conf
    echo "options root=/dev/nvme0n1p2 rw mitigations=off quiet splash ipv6.disable=1 loglevel=3 rd.systemd.show_status=auto rd.udev.log_priority=3 resume=/dev/nvme0n1p3"  >> /boot/loader/entries/arch.conf
    bootctl update
