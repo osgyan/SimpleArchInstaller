@@ -104,7 +104,7 @@ else
     printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk /dev/nvme0n1
 fi
 
-yes | mkfs.ext4 /dev/nvme0n1p2
+yes | mkfs.xfs /dev/nvme0n1p2
 yes | mkfs.xfs /dev/nvme0n1p4
 yes | mkfs.vfat -F 32 /dev/nvme0n1p1
 mkswap /dev/nvme0n1p3 && swapon /dev/nvme0n1p3
@@ -136,7 +136,7 @@ pacman -S --noconfirm reflector
 reflector --country $country  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
-yes '' | pacstrap -i /mnt base ttf-liberation linux linux-firmware nano lvm2 sudo base-devel intel-ucode
+yes '' | pacstrap -i /mnt base ttf-liberation linux-lts linux-firmware nano lvm2 sudo base-devel intel-ucode
 
 genfstab -U -p /mnt >> /mnt/etc/fstab
 
@@ -163,7 +163,7 @@ echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
 sleep 1
 pacman -Syy
 sleep 1 
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam nvidia nvidia-settings lib32-nvidia-utils bash-completion git gnome gnome-extra
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam nvidia-lts nvidia-settings lib32-nvidia-utils bash-completion git gnome gnome-extra
  
 systemctl enable libvirtd
 systemctl enable NetworkManager
@@ -192,9 +192,9 @@ arch-chroot /mnt /bin/bash <<EOF
    bootctl install
    touch /boot/loader/entries/arch.conf
    echo "tltle Arch Linux" >> /boot/loader/entries/arch.conf
-   echo "linux   /vmlinuz-linux" >> /boot/loader/entries/arch.conf
-   echo "initrd  /intel-ucode.img" >> /boot/loader/entries/arch.conf
-   echo "initrd  /initramfs-linux.img" >> /boot/loader/entries/arch.conf
+   echo "linux   /vmlinuz-linux-lts" >> /boot/loader/entries/arch.conf
+   echo "initrd  /intel-ucode-lts.img" >> /boot/loader/entries/arch.conf
+   echo "initrd  /initramfs-linux-lts.img" >> /boot/loader/entries/arch.conf
    echo "options root=/dev/nvme0n1p2 rw mitigations=off quiet splash ipv6.disable=1 loglevel=3 rd.systemd.show_status=auto rd.udev.log_priority=3 resume=/dev/nvme0n1p3"  >> /boot/loader/entries/arch.conf
    bootctl update
 
