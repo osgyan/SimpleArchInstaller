@@ -162,7 +162,7 @@ echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
 sleep 1
 pacman -Syy
 sleep 1 
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut nvidia nvidia-settings lib32-nvidia-utils bash-completion git plasma-meta plasma-desktop sddm sddm-kcm dolphin konsole breeze-gtk kde-gtk-config packagekit packagekit-qt5 kate okular 
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut nvidia nvidia-settings lib32-nvidia-utils bash-completion git plasma-meta plasma-desktop sddm sddm-kcm dolphin konsole breeze-gtk kde-gtk-config packagekit packagekit-qt5 kate okular meson 
 systemctl enable libvirtd
 systemctl enable NetworkManager
 systemctl enable sddm
