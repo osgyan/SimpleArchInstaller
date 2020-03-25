@@ -170,7 +170,7 @@ systemctl enable NetworkManager
 systemctl enable gdm
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block lvm2 filesystems resume keyboard fsck"/' /etc/mkinitcpio.conf
-mkinitcpio -p linux
+mkinitcpio -p linux-lts
 echo "Setting root password"
 echo "root:${root_password}" | chpasswd
 useradd -m -G wheel -s /bin/bash $UserName
