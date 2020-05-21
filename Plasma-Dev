@@ -1,0 +1,217 @@
+#!/bin/bash
+
+#  SimpleArchInstaller is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  SimpleArchInstaller is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with SimpleArch Installer.  If not, see <https://www.gnu.org/licenses/>.
+
+# Credits
+#https://gist.github.com/mattiaslundberg/8620837
+#https://gist.github.com/rasschaert/0bb7ebc506e26daee585
+#https://www.howtoforge.com/tutorial/how-to-install-arch-linux-with-full-disk-encryption/
+#https://computingforgeeks.com/install-arch-linux-with-lvm-on-uefi-system/
+#The above resources helped me in getting this Script to where it is now
+
+bootstrapper_dialog() {
+    DIALOG_RESULT=$(dialog --clear --stdout --backtitle "SimpleArchInstaller" --no-shadow "$@" 2>/dev/null)
+}
+
+#################
+#### Welcome ####
+#################
+bootstrapper_dialog --title "Welcome" --msgbox "Welcome to SimpleArchInstaller.\n" 6 60
+
+##############################
+#### UEFI / BIOS detection ###
+##############################
+efivar -l >/dev/null 2>&1
+
+if [[ $? -eq 0 ]]; then
+    UEFI_BIOS_text="UEFI detected."
+    UEFI_radio="on"
+    BIOS_radio="off"
+else
+    UEFI_BIOS_text="BIOS detected."
+    UEFI_radio="off"
+    BIOS_radio="on"
+fi
+
+bootstrapper_dialog --title "UEFI or BIOS" --radiolist "${UEFI_BIOS_text}\nPress <Enter> to accept." 10 30 2 1 UEFI "$UEFI_radio" 2 BIOS "$BIOS_radio"
+[[ $DIALOG_RESULT -eq 1 ]] && UEFI=1 || UEFI=0
+
+#################
+#### Prompts ####
+#################
+bootstrapper_dialog --title "Hostname" --inputbox "Please enter a name for this host.\n" 8 60
+hostname="$DIALOG_RESULT"
+bootstrapper_dialog --title "Country" --inputbox "Please enter your country name.\n" 8 60
+country="$DIALOG_RESULT"
+
+bootstrapper_dialog --title "UserName" --inputbox "Please enter a name for the User.\n" 8 60
+UserName="$DIALOG_RESULT"
+
+
+##########################
+#### Password prompts ####
+##########################
+bootstrapper_dialog --title "Root password" --passwordbox "Please enter a strong password for the root user.\n" 8 60
+root_password="$DIALOG_RESULT"
+
+bootstrapper_dialog --title "User password" --passwordbox "Please enter a strong password for the user.\n" 8 60
+UserPassword="$DIALOG_RESULT"
+
+#################
+#### Warning ####
+#################
+bootstrapper_dialog --title "WARNING" --msgbox "This script will NUKE /dev/nvme0n1 from orbit.\nPress <Enter> to continue or <Esc> to cancel.\n" 6 60
+[[ $? -ne 0 ]] && (bootstrapper_dialog --title "Cancelled" --msgbox "Script was cancelled at your request." 5 40; exit 0)
+
+##########################
+#### reset the screen ####
+##########################
+reset
+
+#########################################
+#### Nuke and set up disk partitions ####
+#########################################
+echo "Zapping disk"
+sgdisk --zap-all /dev/nvme0n1
+
+if [[ $UEFI -eq 1 ]]; then
+
+parted -s /dev/nvme0n1 mklabel gpt
+parted -s /dev/nvme0n1 mkpart ESP fat32 1MiB 513MiB
+parted -s /dev/nvme0n1 set 1 boot on
+parted -s /dev/nvme0n1 name 1 efi
+parted -s /dev/nvme0n1 mkpart primary 513MiB 31233MiB
+parted -s /dev/nvme0n1 name 2 Root
+parted -s /dev/nvme0n1 mkpart primary 31233MiB 39425MiB
+parted -s /dev/nvme0n1 name 3 swap
+parted -s /dev/nvme0n1 mkpart primary 39425MiB 100%
+parted -s /dev/nvme0n1 name 4 Home
+parted -s /dev/nvme0n1 set 1 esp on  
+
+
+else
+    printf "n\np\n2\n\n\nt\n2\n8e\nw\n" | fdisk /dev/nvme0n1
+fi
+
+yes | mkfs.xfs -f /dev/nvme0n1p2
+yes | mkfs.xfs -f /dev/nvme0n1p4
+yes | mkfs.vfat -F 32 /dev/nvme0n1p1
+mkswap /dev/nvme0n1p3 && swapon /dev/nvme0n1p3
+
+######################
+#### Install Arch ####
+######################
+
+if [[ $UEFI -eq 1 ]]; then
+
+mount /dev/nvme0n1p2 /mnt
+mkdir /mnt/{boot,home}
+mount /dev/nvme0n1p1 /mnt/boot/
+mount /dev/nvme0n1p4 /mnt/home
+mkdir /mnt/Data
+mount /dev/sda1 /mnt/Data
+
+else
+
+mount /dev/vg00/lvroot /mnt
+mkdir /mnt/{boot,home}
+mount /dev/nvme0n11 /mnt/boot
+mount /dev/vg00/lvhome /mnt/home
+
+fi
+
+pacman -Syy
+pacman -S --noconfirm reflector
+reflector --country $country  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+pacman -Syy
+
+yes '' | pacstrap -i /mnt base ttf-liberation linux linux-firmware nano lvm2 sudo base-devel intel-ucode
+
+genfstab -U -p /mnt >> /mnt/etc/fstab
+
+###############################
+#### Configure base system ####
+###############################
+arch-chroot /mnt /bin/bash <<EOF
+echo "Setting and generating locale"
+echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+echo "en_IN.UTF-8 UTF-8" > /etc/locale.gen
+locale-gen
+export LANG=en_IN.UTF-8
+echo "LANG=en_IN.UTF-8" >> /etc/locale.conf
+echo "Setting time zone"
+ln -s /usr/share/zoneinfo/Asia/Kolkata /etc/localtime
+echo "Setting hostname"
+echo $hostname > /etc/hostname
+sed -i "/localhost/s/$/ $hostname/" /etc/hosts
+echo "Installing wifi packages"
+## Insert Code to Modify Pacman.conf for Enabling Multilib support##
+echo "[multilib]" >> /etc/pacman.conf
+echo "SigLevel = PackageRequired" >> /etc/pacman.conf
+echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+sleep 1
+pacman -Syy
+sleep 1 
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut nvidia-lts nvidia-settings lib32-nvidia-utils bash-completion git plasma-meta plasma-desktop sddm sddm-kcm dolphin konsole breeze-gtk kde-gtk-config packagekit packagekit-qt5 kate okular gwenview meson libreoffice-fresh go 
+systemctl enable libvirtd
+systemctl enable NetworkManager
+systemctl enable sddm
+echo "Generating initramfs"
+sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block lvm2 filesystems resume keyboard"/' /etc/mkinitcpio.conf
+mkinitcpio -p linux
+echo "Setting root password"
+echo "root:${root_password}" | chpasswd
+useradd -m -G wheel -s /bin/bash $UserName
+echo "Setting user password"
+echo "$UserName:${UserPassword}" | chpasswd
+echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers
+gpasswd -a $UserName kvm
+gpasswd -a $UserName libvirt
+
+
+EOF
+
+#############################
+#### Install boot loader ####
+#############################
+if [[ $UEFI -eq 1 ]]; then
+arch-chroot /mnt /bin/bash <<EOF
+    echo "Enabling Systemd Bootloader"
+   bootctl install
+   touch /boot/loader/entries/arch.conf
+   echo "tltle Arch Linux" >> /boot/loader/entries/arch.conf
+   echo "linux   /vmlinuz-linux" >> /boot/loader/entries/arch.conf
+   echo "initrd  /intel-ucode.img" >> /boot/loader/entries/arch.conf
+   echo "initrd  /initramfs-linux.img" >> /boot/loader/entries/arch.conf
+   echo "options root=/dev/nvme0n1p2 ro mitigations=off quiet splash ipv6.disable=1 loglevel=3 rd.systemd.show_status=auto rd.udev.log_priority=3 resume=/dev/nvme0n1p3"  >> /boot/loader/entries/arch.conf
+   bootctl update
+git clone https://aur.archlinux.org/yay.git
+cd yay
+mkpkg -si
+
+EOF
+reboot
+else
+    arch-chroot /mnt /bin/bash <<EOF
+    echo "Installing Grub boot loader"
+    pacman --noconfirm -S grub
+    grub-install /dev/nvme0n1
+    sed -i 's|^GRUB_CMDLINE_LINUX.*|GRUB_CMDLINE_LINUX="quiet cryptdevice=/dev/nvme0n1p3:luks:allow-discards root=/dev/vg00/lvroot"|' /etc/default/grub
+    
+    grub-mkconfig -o /boot/grub/grub.cfg
+EOF
+fi
+
+#################
+#### The end ####
+#################
