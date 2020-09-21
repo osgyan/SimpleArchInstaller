@@ -162,7 +162,7 @@ echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
 sleep 1
 pacman -Syy
 sleep 1 
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut nvidia nvidia-settings lib32-nvidia-utils bash-completion git plasma-meta plasma-desktop sddm sddm-kcm dolphin konsole breeze-gtk kde-gtk-config packagekit packagekit-qt5 kate okular gwenview meson libreoffice-fresh go ark
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam nvidia nvidia-settings lib32-nvidia-utils bash-completion git packagekit meson libreoffice-fresh go gnome gdm 
 systemctl enable libvirtd
 systemctl enable NetworkManager
 systemctl enable sddm
@@ -193,7 +193,7 @@ arch-chroot /mnt /bin/bash <<EOF
    echo "linux   /vmlinuz-linux" >> /boot/loader/entries/arch.conf
    echo "initrd  /intel-ucode.img" >> /boot/loader/entries/arch.conf
    echo "initrd  /initramfs-linux.img" >> /boot/loader/entries/arch.conf
-   echo "options root=/dev/sdc2 ro mitigations=off quiet splash ipv6.disable=1 loglevel=3 rd.systemd.show_status=auto rd.udev.log_priority=3 resume=/dev/sdc3"  >> /boot/loader/entries/arch.conf
+   echo "options root=/dev/sdc2 ro mitigations=off quiet splash ipv6.disable=1 loglevel=3 rd.systemd.show_status=auto rd.udev.log_priority=3 resume=/dev/sdc3 nvidia-drm.modeset=1"  >> /boot/loader/entries/arch.conf
    bootctl update
 
 
