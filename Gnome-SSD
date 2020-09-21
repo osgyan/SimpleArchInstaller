@@ -165,7 +165,7 @@ sleep 1
 pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam nvidia nvidia-settings lib32-nvidia-utils bash-completion git packagekit meson libreoffice-fresh go gnome gdm 
 systemctl enable libvirtd
 systemctl enable NetworkManager
-systemctl enable sddm
+systemctl enable gdm
 echo "Generating initramfs"
 sed -i 's/^HOOKS.*/HOOKS="base udev autodetect modconf block lvm2 filesystems resume keyboard"/' /etc/mkinitcpio.conf
 mkinitcpio -p linux
