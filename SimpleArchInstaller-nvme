@@ -135,8 +135,7 @@ mount /dev/nvme0n1p2 /mnt/boot/
 mkdir /mnt/boot/efi
 mount /dev/nvme0n1p1 /mnt/boot/efi
 mount /dev/vg00/lvhome /mnt/home
-mkdir /mnt/Data
-mount /dev/sda1 /mnt/Data
+
 
 
 else
@@ -153,7 +152,7 @@ pacman -S --noconfirm reflector
 reflector --country $country  --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
-yes '' | pacstrap -i /mnt base ttf-liberation linux linux-firmware nano lvm2 sudo base-devel
+yes '' | pacstrap -i /mnt base ttf-liberation linux linux-firmware nano lvm2 sudo base-devel sof-firmware
 
 genfstab -U -p /mnt >> /mnt/etc/fstab
 
@@ -180,7 +179,7 @@ echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
 sleep 1
 pacman -Syy
 sleep 1 
-pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut nvidia nvidia-settings lib32-nvidia-utils bash-completion git plasma-meta plasma-desktop sddm sddm-kcm dolphin konsole breeze-gtk kde-gtk-config
+pacman --noconfirm -S networkmanager net-tools firefox qemu virt-manager dnsmasq iptables ebtables libvirt xorg-server xorg-drivers steam obs-studio shotcut kdenlive ark p7zip vlc libreoffice-fresh go meson bash-completion git plasma-meta plasma-desktop sddm sddm-kcm dolphin konsole breeze-gtk kde-gtk-config
 systemctl enable libvirtd
 systemctl enable NetworkManager
 systemctl enable sddm
